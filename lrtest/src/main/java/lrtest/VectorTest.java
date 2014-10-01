@@ -51,12 +51,9 @@ public class VectorTest {
 		System.out.println(System.currentTimeMillis());
 		//repeat 1 million times
 		for (int i = 0; i < 100000000; i++) {
-			// retValue = histhelper.getBinNo(v1);
-			;
+			retValue = histhelper.getBinNo(v1);
 		}
 		System.out.println(System.currentTimeMillis());
-		
-
 	}
 
 }

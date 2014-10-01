@@ -4,7 +4,7 @@ import java.util.ArrayList;
 import org.apache.spark.util.Vector;
 
 @SuppressWarnings("deprecation")
-public class HistogramHelper {
+public class HistogramHelper implements IHistogramHelper {
 	
 	private final ArrayList<Integer> dimensions = new ArrayList<Integer>();
 	private final ArrayList<Double> minValues = new ArrayList<Double>();
@@ -52,6 +52,9 @@ public class HistogramHelper {
 	}
 	
 	// Will return the BinNo based on the selected dimensions of the Histogram
+	/* (non-Javadoc)
+	 * @see lrtest.IHistogramHelper#getBinNo(org.apache.spark.util.Vector)
+	 */
 	public int getBinNo(Vector v){
 		double[] elements = v.elements();
 		int tempValue = 0;
@@ -67,5 +70,32 @@ public class HistogramHelper {
 		this.maxValues.clear();
 		this.splitSizes.clear();
 		this.multiplier.clear();
+	}
+
+	public int getParentId(int level, int id) {
+		int remainder = id;
+		int parentId = 0;
+		for (int i = 0; i < level; i++) {
+			int axispoint = (int)(remainder/this.multiplier.get(i));
+			remainder -= (axispoint * this.multiplier.get(i));
+			parentId += axispoint * this.multiplier.get(i);
+		}
+		return parentId;
+	}
+
+	public int getNoofDimensions() {
+		return this.dimensions.size();
+	}
+
+	public int[] getCordinate(int id) {
+		int remainder = id;
+		int noofDimensions = getNoofDimensions();
+		int[] cordinates = new int[noofDimensions];
+		for (int i = 0; i < noofDimensions; i++) {
+			int axispoint = (int)(remainder/this.multiplier.get(i));
+			remainder -= (axispoint * this.multiplier.get(i));
+			cordinates[i] = axispoint;
+		}
+		return cordinates;
 	}
 }
