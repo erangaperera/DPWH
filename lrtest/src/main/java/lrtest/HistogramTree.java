@@ -3,6 +3,8 @@ package lrtest;
 import java.util.Map;
 import java.util.TreeMap;
 
+import org.apache.log4j.Logger;
+
 public class HistogramTree {
 	
 	private int id;
@@ -12,6 +14,8 @@ public class HistogramTree {
 	private int subTotal = 0;
 	private final Map<Integer,HistogramTree> children = new TreeMap<Integer,HistogramTree>();
 	private boolean leafLevel;
+	private int groupId = 0;
+	private final Logger logger = Logger.getLogger(this.getClass());
 	
 	public int getId() {
 		return id;
@@ -71,5 +75,104 @@ public class HistogramTree {
 			parent.AddNode(id, subTotal);
 			this.children.put(parentId, parent);
 		}
+	}
+
+	// This will group the adjacent bins of roughly equal size
+	public Map<Integer, Integer[]> groupBins(int noofBins) {
+		int noofDimensions = histogramHelper.getNoofDimensions();
+		double divideFactor = Math.pow(noofBins, (1.0 / noofDimensions));
+		logger.info("Total number of Data Points -> " + this.subTotal);
+		logger.info("Required No. of bins -> " + noofBins);
+		return groupBins(children, 0, this.subTotal, divideFactor);
+	}
+	
+	// We will use recursion to navigate deep into the tree
+	private Map<Integer, Integer[]> groupBins(Map<Integer,HistogramTree> subtree,int level, double subTotal, double divideFactor) {
+		
+		double qty2split = subTotal / divideFactor;
+		int dimensionSize = histogramHelper.getSplits(level);
+		
+		// This will aggregate the results received from the recursion
+		Map<Integer, Integer[]> binGroup = new TreeMap<Integer, Integer[]>();
+		// This variable will combine the child nodes that will send to the next level
+		Map<Integer,HistogramTree> nextTree = new TreeMap<Integer, HistogramTree>();
+		int splitTotal = 0;
+		
+		for (int i = 0; i < dimensionSize; i++) {
+			
+			int loopTotal = 0;
+			int nextLoopTotal = 0;
+			
+			Map<Integer,HistogramTree> tempTree = new TreeMap<Integer, HistogramTree>();
+			Map<Integer,HistogramTree> removeTree = new TreeMap<Integer, HistogramTree>();
+			
+			for (HistogramTree node : subtree.values()) {
+				if (node.getCordinate()[level] == i){
+					loopTotal += node.getSubTotal();
+					// tempTree.put(node.getId(), node);
+					removeTree.put(node.getId(), node);
+					// if we are in the last level add current nodes else add children
+					if (level == (histogramHelper.getNoofDimensions() - 1)){
+						tempTree.put(node.getId(), node);
+					}
+					else
+					{
+						tempTree.putAll(node.getChildren());
+					}
+				}
+				nextLoopTotal += (node.getCordinate()[level] == i + 1) ? node.getSubTotal() : 0;
+			}
+			splitTotal += loopTotal;
+			nextTree.putAll(tempTree);
+			
+			// Needs some improvement Here
+			if ((splitTotal > qty2split) || (((splitTotal <= qty2split) && (qty2split < (splitTotal + nextLoopTotal))) && ((qty2split - splitTotal) < (splitTotal + nextLoopTotal - qty2split)))){
+				// Make a comparison of for next start value
+				if (level == (histogramHelper.getNoofDimensions() - 1)){
+					binGroup.putAll(createGroup(nextTree));
+				}
+				else{
+					binGroup.putAll(groupBins(nextTree, level +1, qty2split, divideFactor));
+				}
+				// Current sub-total is sent for the next level to iterate, therefore clear
+				nextTree.clear();
+				splitTotal = 0;
+			}
+			else{
+				for (HistogramTree node : removeTree.values()) {
+					subtree.remove(node.getId());
+				}
+			}
+		}
+		
+		// This is the last group along the axis
+		if (splitTotal > 0){
+			if (level == (histogramHelper.getNoofDimensions() - 1)){
+				binGroup.putAll(createGroup(nextTree));
+			}
+			else{
+				binGroup.putAll(groupBins(nextTree, level +1, qty2split, divideFactor));
+			}
+		}
+		
+		return binGroup;
+	}
+	
+	private Map<Integer, Integer[]> createGroup(Map<Integer,HistogramTree> tree){
+		
+		Map<Integer, Integer[]> temp = new TreeMap<Integer, Integer[]>();
+		Integer[] bins = new Integer[tree.size()];
+		int i = 0;
+		int groupTotal = 0;
+		for(HistogramTree node : tree.values()){
+			bins[i] = node.getId();
+			groupTotal += node.getSubTotal();
+			i++;
+		}
+		temp.put(groupId, bins);
+		
+		logger.info("Group created -> " + groupId + ", Total -> " + groupTotal);
+		groupId++;
+		return temp;
 	}
 }

@@ -98,4 +98,8 @@ public class HistogramHelper implements IHistogramHelper {
 		}
 		return cordinates;
 	}
+
+	public int getSplits(int level) {
+		return splitSizes.get(level);
+	}
 }

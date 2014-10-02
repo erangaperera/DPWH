@@ -1,7 +1,5 @@
 package lrtest;
 
-import java.util.Map;
-
 import org.apache.spark.util.Vector;
 
 @SuppressWarnings("deprecation")
@@ -18,5 +16,7 @@ public interface IHistogramHelper {
 
 	// Create the coordinate for the id
 	public abstract int[] getCordinate(int id);
+
+	public abstract int getSplits(int level);
 
 }
