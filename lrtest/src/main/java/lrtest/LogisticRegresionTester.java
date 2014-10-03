@@ -8,6 +8,7 @@ import java.util.regex.Pattern;
 
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
+import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.api.java.function.Function;
@@ -15,7 +16,9 @@ import org.apache.spark.mllib.classification.LogisticRegressionModel;
 import org.apache.spark.mllib.classification.LogisticRegressionWithSGD;
 import org.apache.spark.mllib.linalg.Vector;
 import org.apache.spark.mllib.linalg.Vectors;
+import org.apache.spark.mllib.optimization.LBFGS;
 import org.apache.spark.mllib.regression.LabeledPoint;
+import org.apache.spark.storage.StorageLevel;
 
 public class LogisticRegresionTester {
 
@@ -26,6 +29,21 @@ public class LogisticRegresionTester {
 
 		private static final Pattern COMMA = Pattern.compile(",");
 
+//		// for abc.txt
+//		public LabeledPoint call(String line) {
+//			Logger logger = Logger.getLogger(this.getClass());
+//			logger.debug(line);
+//			// System.out.println(line);
+//			String[] parts = COMMA.split(line);
+//			double y = Double.parseDouble(parts[parts.length - 1]);
+//			double[] x = new double[parts.length - 1];
+//			for (int i = 0; i < parts.length - 1; ++i) {
+//				x[i] = Double.parseDouble(parts[i]);
+//			}
+//			return new LabeledPoint(y, Vectors.dense(x));
+//		}
+		
+		// for Upuls dataset
 		public LabeledPoint call(String line) {
 			Logger logger = Logger.getLogger(this.getClass());
 			logger.debug(line);
@@ -46,9 +64,9 @@ public class LogisticRegresionTester {
 
 		JavaRDD<String> lines = null;
 		if (headerRowSkippingCriteria == null) {
-			lines = sc.textFile(fileLocation).sample(false, 0.0001, 11L);
+			lines = sc.textFile(fileLocation).sample(false, 0.02, 11L);
 		} else {
-			lines = sc.textFile(fileLocation).sample(false, 0.0001, 11L)
+			lines = sc.textFile(fileLocation).sample(false, 0.02, 11L)
 					.filter(new Function<String, Boolean>() {
 						public Boolean call(String line) {
 							if (line.contains(headerRowSkippingCriteria)) {
@@ -62,59 +80,51 @@ public class LogisticRegresionTester {
 		return lines;
 	}
 
+	@SuppressWarnings("serial")
 	public static void main(String[] args) {
 
-		// SparkConf sContext = new SparkConf();
-		// sContext.setMaster("local");
-		// sContext.setAppName("JavaLR");
-		// sContext.set("spark.executor.memory", "4G");
+		 SparkConf sContext = new SparkConf();
+		 sContext.setMaster("local[4]");
+		 sContext.setAppName("JavaLR");
+		 sContext.set("spark.executor.memory", "4G");
 		
 		Logger.getRootLogger().setLevel(Level.OFF);
-		sc = new JavaSparkContext("local", "JavaLR");
-
-		JavaRDD<String> data = readData(
+		sc = new JavaSparkContext(sContext); //"local[4]", "JavaLR");
+		JavaRDD<String> trainingData = readData(
+				//"/Users/erangap/Documents/ML_Project/abc.txt",
 				"/Users/erangap/Documents/ML_Project/datasets/trainImputedNormalized.csv",
 				"Id");
-		// JavaRDD<String> data =
-		// readData("/Users/erangap/Documents/ML_Project/datasets/reduced.csv",
-		// "Id");
-		JavaRDD<String> trainingData = data;
-		System.out.println(data.first());
+//		JavaRDD<String> trainingData = data;
+		JavaRDD<String> testdata = readData(
+				//"/Users/erangap/Documents/ML_Project/abc.txt",
+				"/Users/erangap/Documents/ML_Project/datasets/testImputedNormalized.csv",
+				"Id");
+		// System.out.println(data.first());
 
 		// trainingData.saveAsTextFile("/Users/erangap/Documents/ML_Project/datasets/reduced.csv");
-		JavaRDD<LabeledPoint> points = trainingData.map(new ParsePoint())
-				.cache();
-		//long total = points.count();
-//		JavaRDD<LabeledPoint> zeros = points
-//				.filter(new Function<LabeledPoint, Boolean>() {
-//
-//					public Boolean call(LabeledPoint point) throws Exception {
-//						// TODO Auto-generated method stub
-//						return !(point.label() > 0);
-//					}
-//				});
-//		long zerotot = zeros.count();
-//		System.out
-//				.println("Percentage of zeros ->" + (zerotot * 100.0 / total));
+		JavaRDD<LabeledPoint> points = trainingData.map(new ParsePoint());
+		points.persist(StorageLevel.MEMORY_AND_DISK());
+		System.out.println(points.first().features());
+		JavaRDD<LabeledPoint> testPoints = testdata.map(new ParsePoint());
+		testPoints.persist(StorageLevel.MEMORY_AND_DISK());
 		DateFormat dateFormat = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss");
 		String start = dateFormat.format(Calendar.getInstance().getTime());
-		final LogisticRegressionModel model = LogisticRegressionWithSGD.train(
-				points.rdd(), 100);
+		LogisticRegressionModel model = 
+				LogisticRegressionWithSGD.train(points.rdd(), 100);
+		// model.clearThreshold();
+		model.setThreshold(0.499999);
 		System.out.print("Final w: " + model.weights());
-		// model.predict(points.first().features());
+//		model.weights().toBreeze().
 		System.out.println("");
-//		final IntAdder ptot = new IntAdder();
-//		final IntAdder pinc = new IntAdder();
-//		final IntAdder pcor = new IntAdder();
 		
-		JavaRDD<LabeledPoint> testdata = points.sample(false, 0.001);
-        JavaRDD<Vector> testingFeatures = testdata.map(new Function<LabeledPoint, Vector>() {
+//		JavaRDD<LabeledPoint> testdata = points.sample(false, 0.1);
+        JavaRDD<Vector> testingFeatures = testPoints.map(new Function<LabeledPoint, Vector>() {
             public Vector call(LabeledPoint label) throws Exception {
                 return label.features();
             }
         }).cache();
 
-        JavaRDD<Double> testingLabels = testdata.map(new Function<LabeledPoint, Double>() {
+        JavaRDD<Double> testingLabels = testPoints.map(new Function<LabeledPoint, Double>() {
             public Double call(LabeledPoint dataPoint) throws Exception {
                 return dataPoint.label();
             }
@@ -124,22 +134,12 @@ public class LogisticRegresionTester {
         List<Double> predictedLabels = model.predict(testingFeatures).toArray();
 		
 		
-//		points.sample(false, 0.001).foreach(new VoidFunction<LabeledPoint>() {
-//
-//			public void call(LabeledPoint point) throws Exception {
-//				// TODO Auto-generated method stub
-//				double predicted = model.predict(point.features());
-//				ptot.add();
-//				if (point.label() == predicted)
-//					pcor.add();
-//				else
-//					pinc.add();
-//				
-//			}
-//		});
 		System.out.println(start);
 		System.out.println(dateFormat.format(Calendar.getInstance().getTime()));
-//		System.out.println("Accuracy ->" + (pcor.getCount() * 100.0 / ptot.getCount()));
+		for (Double predlabel : predictedLabels) {
+			if (predlabel > 0)
+				System.out.println("Predited 1");
+		}
 		System.out.println("Testing accuracy (%): " + Metrics.accuracy(classLabels, predictedLabels));
 	}
 
