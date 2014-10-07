@@ -1,4 +1,4 @@
-package lrtest;
+package org.wso2.carbon.lrtest;
 
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
@@ -12,16 +12,12 @@ import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.api.java.function.Function;
-import org.apache.spark.mllib.classification.LogisticRegressionModel;
-import org.apache.spark.mllib.classification.LogisticRegressionWithSGD;
-import org.apache.spark.mllib.linalg.Vector;
 import org.apache.spark.mllib.linalg.Vectors;
-import org.apache.spark.mllib.optimization.LBFGS;
 import org.apache.spark.mllib.regression.LabeledPoint;
 import org.apache.spark.storage.StorageLevel;
 
-public class LogisticRegresionTester {
-
+public class RandomPartitionTester {
+	
 	private static JavaSparkContext sc;
 
 	@SuppressWarnings("serial")
@@ -29,20 +25,6 @@ public class LogisticRegresionTester {
 
 		private static final Pattern COMMA = Pattern.compile(",");
 
-//		// for abc.txt
-//		public LabeledPoint call(String line) {
-//			Logger logger = Logger.getLogger(this.getClass());
-//			logger.debug(line);
-//			// System.out.println(line);
-//			String[] parts = COMMA.split(line);
-//			double y = Double.parseDouble(parts[parts.length - 1]);
-//			double[] x = new double[parts.length - 1];
-//			for (int i = 0; i < parts.length - 1; ++i) {
-//				x[i] = Double.parseDouble(parts[i]);
-//			}
-//			return new LabeledPoint(y, Vectors.dense(x));
-//		}
-		
 		// for Upuls dataset
 		public LabeledPoint call(String line) {
 			Logger logger = Logger.getLogger(this.getClass());
@@ -64,9 +46,9 @@ public class LogisticRegresionTester {
 
 		JavaRDD<String> lines = null;
 		if (headerRowSkippingCriteria == null) {
-			lines = sc.textFile(fileLocation).sample(false, 0.02, 11L);
+			lines = sc.textFile(fileLocation);
 		} else {
-			lines = sc.textFile(fileLocation).sample(false, 0.02, 11L)
+			lines = sc.textFile(fileLocation)
 					.filter(new Function<String, Boolean>() {
 						public Boolean call(String line) {
 							if (line.contains(headerRowSkippingCriteria)) {
@@ -79,68 +61,61 @@ public class LogisticRegresionTester {
 		}
 		return lines;
 	}
-
-	@SuppressWarnings("serial")
+	
 	public static void main(String[] args) {
-
+		
 		 SparkConf sContext = new SparkConf();
-		 sContext.setMaster("local[4]");
+		 sContext.setMaster("local");
 		 sContext.setAppName("JavaLR");
 		 sContext.set("spark.executor.memory", "4G");
 		
 		Logger.getRootLogger().setLevel(Level.OFF);
 		sc = new JavaSparkContext(sContext); //"local[4]", "JavaLR");
 		JavaRDD<String> trainingData = readData(
-				//"/Users/erangap/Documents/ML_Project/abc.txt",
 				"/Users/erangap/Documents/ML_Project/datasets/trainImputedNormalized.csv",
-				"Id");
-//		JavaRDD<String> trainingData = data;
+				"Id").sample(false, 0.1, 11L);
 		JavaRDD<String> testdata = readData(
-				//"/Users/erangap/Documents/ML_Project/abc.txt",
 				"/Users/erangap/Documents/ML_Project/datasets/testImputedNormalized.csv",
-				"Id");
-		// System.out.println(data.first());
-
+				"Id").sample(false, 0.1, 11L);
+		
 		// trainingData.saveAsTextFile("/Users/erangap/Documents/ML_Project/datasets/reduced.csv");
 		JavaRDD<LabeledPoint> points = trainingData.map(new ParsePoint());
-		points.persist(StorageLevel.MEMORY_AND_DISK());
-		System.out.println(points.first().features());
+		//points.persist(StorageLevel.MEMORY_AND_DISK());
+		// System.out.println(points.first().features());
 		JavaRDD<LabeledPoint> testPoints = testdata.map(new ParsePoint());
-		testPoints.persist(StorageLevel.MEMORY_AND_DISK());
-		DateFormat dateFormat = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss");
-		String start = dateFormat.format(Calendar.getInstance().getTime());
-		LogisticRegressionModel model = 
-				LogisticRegressionWithSGD.train(points.rdd(), 100);
-		// model.clearThreshold();
-		model.setThreshold(0.499999);
-		System.out.print("Final w: " + model.weights());
-//		model.weights().toBreeze().
-		System.out.println("");
+		//testPoints.persist(StorageLevel.MEMORY_AND_DISK());
 		
-//		JavaRDD<LabeledPoint> testdata = points.sample(false, 0.1);
-        JavaRDD<Vector> testingFeatures = testPoints.map(new Function<LabeledPoint, Vector>() {
-            public Vector call(LabeledPoint label) throws Exception {
-                return label.features();
-            }
-        }).cache();
+		System.out.println("Total number of records -> " + points.count());
+		
+		RandomPartitionedEnSembler ensembler = new RandomPartitionedEnSembler();
+		ensembler.setNoofModels(3);
+		ensembler.setThreshold(0.499999);
+		
+		DateFormat dateFormat = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss");
+		String trainStart = dateFormat.format(Calendar.getInstance().getTime());
+		ensembler.train(points);
+		String trainEnd = dateFormat.format(Calendar.getInstance().getTime());
+		
+		System.out.println("Training Started at -> " + trainStart);
+		System.out.println("Training Ended at -> " + trainEnd);
 
-        JavaRDD<Double> testingLabels = testPoints.map(new Function<LabeledPoint, Double>() {
-            public Double call(LabeledPoint dataPoint) throws Exception {
+		JavaRDD<Double> testingLabels = testPoints.map(new Function<LabeledPoint, Double>() {
+            
+			private static final long serialVersionUID = -6597374940461185814L;
+			public Double call(LabeledPoint dataPoint) throws Exception {
                 return dataPoint.label();
             }
         }).cache();
+		List<Double> classLabels = testingLabels.toArray();
+		String predictStart = dateFormat.format(Calendar.getInstance().getTime());
+		List<Double> predictedLabels = ensembler.voteAndPredit(testPoints).toArray();
+        String predictEnd = dateFormat.format(Calendar.getInstance().getTime());
         
-        List<Double> classLabels = testingLabels.toArray();
-        List<Double> predictedLabels = model.predict(testingFeatures).toArray();
-		
-		
-		System.out.println(start);
-		System.out.println(dateFormat.format(Calendar.getInstance().getTime()));
-		for (Double predlabel : predictedLabels) {
-			if (predlabel > 0)
-				System.out.println("Predited 1");
-		}
+        System.out.println("Prediction Started at -> " + predictStart);
+		System.out.println("Prediction Ended at -> " + predictEnd);
+        
 		System.out.println("Testing accuracy (%): " + Metrics.accuracy(classLabels, predictedLabels));
+		
 	}
 
 }

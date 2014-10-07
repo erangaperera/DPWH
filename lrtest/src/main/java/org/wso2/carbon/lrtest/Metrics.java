@@ -1,4 +1,4 @@
-package lrtest;
+package org.wso2.carbon.lrtest;
 
 import java.util.List;
 

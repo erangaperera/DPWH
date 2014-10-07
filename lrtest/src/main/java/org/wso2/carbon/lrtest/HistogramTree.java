@@ -1,12 +1,36 @@
-package lrtest;
+/*
+ * Copyright (c) 2005-2014, WSO2 Inc. (http://www.wso2.org) All Rights Reserved.
+ *
+ * WSO2 Inc. licenses this file to you under the Apache License,
+ * Version 2.0 (the "License"); you may not use this file except
+ * in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
 
+package org.wso2.carbon.lrtest;
+
+import java.io.Serializable;
 import java.util.Map;
 import java.util.TreeMap;
 
 import org.apache.log4j.Logger;
 
-public class HistogramTree {
+/**
+ * This class will hold the structure of a histogram
+ * @author erangap
+ */
+public class HistogramTree implements Serializable{
 	
+	private static final long serialVersionUID = -2753020274537678149L;
 	private int id;
 	private int level;
 	private IHistogramHelper histogramHelper;
@@ -15,7 +39,6 @@ public class HistogramTree {
 	private final Map<Integer,HistogramTree> children = new TreeMap<Integer,HistogramTree>();
 	private boolean leafLevel;
 	private int groupId = 0;
-	private final Logger logger = Logger.getLogger(this.getClass());
 	
 	public int getId() {
 		return id;
@@ -81,8 +104,8 @@ public class HistogramTree {
 	public Map<Integer, Integer[]> groupBins(int noofBins) {
 		int noofDimensions = histogramHelper.getNoofDimensions();
 		double divideFactor = Math.pow(noofBins, (1.0 / noofDimensions));
-		logger.info("Total number of Data Points -> " + this.subTotal);
-		logger.info("Required No. of bins -> " + noofBins);
+		Logger.getRootLogger().debug("Total number of Data Points -> " + this.subTotal);
+		Logger.getRootLogger().debug("Required No. of bins -> " + noofBins);
 		return groupBins(children, 0, this.subTotal, divideFactor);
 	}
 	
@@ -104,7 +127,7 @@ public class HistogramTree {
 			int nextLoopTotal = 0;
 			
 			Map<Integer,HistogramTree> tempTree = new TreeMap<Integer, HistogramTree>();
-			Map<Integer,HistogramTree> removeTree = new TreeMap<Integer, HistogramTree>();
+			Map<Integer, HistogramTree> removeTree = new TreeMap<Integer, HistogramTree>();
 			
 			for (HistogramTree node : subtree.values()) {
 				if (node.getCordinate()[level] == i){
@@ -171,7 +194,7 @@ public class HistogramTree {
 		}
 		temp.put(groupId, bins);
 		
-		logger.info("Group created -> " + groupId + ", Total -> " + groupTotal);
+		Logger.getRootLogger().debug("Group created -> " + groupId + ", Total -> " + groupTotal);
 		groupId++;
 		return temp;
 	}
