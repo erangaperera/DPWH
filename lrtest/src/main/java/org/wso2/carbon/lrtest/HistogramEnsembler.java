@@ -1,8 +1,25 @@
+/*
+ * Copyright (c) 2005-2014, WSO2 Inc. (http://www.wso2.org) All Rights Reserved.
+ *
+ * WSO2 Inc. licenses this file to you under the Apache License,
+ * Version 2.0 (the "License"); you may not use this file except
+ * in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+
 package org.wso2.carbon.lrtest;
 
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 import org.apache.spark.api.java.JavaPairRDD;
@@ -57,6 +74,17 @@ public class HistogramEnsembler implements Serializable{
 	
 	public void train(JavaRDD<LabeledPoint> data){
 		
+		// Create all possible bins on the tree to avoid
+		// Inconsistencies within groups
+		int noofDimensions = histogramHelper.getNoofDimensions();
+		int reqNoofBins = 1;
+		for (int i = 0; i < noofDimensions; i++) {
+			reqNoofBins = reqNoofBins * histogramHelper.getSplits(i);
+		}
+		for (int i = 0; i < reqNoofBins; i++) {
+			histogramTree.AddNode(i, 0);
+		}
+		
 		JavaPairRDD<Integer, LabeledPoint> binMappedData = data.mapToPair(new PairFunction<LabeledPoint, Integer, LabeledPoint>() {
 
 			private static final long serialVersionUID = 5789091614872051176L;
@@ -98,10 +126,11 @@ public class HistogramEnsembler implements Serializable{
 		
 		int binNo = histogramHelper.getBinNo(v);
 		int binGroup = binGroups.get(binNo);
-//		if (binGroups.containsKey(binNo))
-//			binGroup = binGroups.get(binNo);
-//		else
-//			return 0.0;
+		/* This condition was experienced due to training data missing some bin that are there in the testing */
+		//		if (binGroups.containsKey(binNo))
+		//			binGroup = binGroups.get(binNo);
+		//		else
+		//			return 0.0;
 		return models.get(binGroup).predict(v);
 	}
 	
