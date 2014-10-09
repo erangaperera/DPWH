@@ -23,6 +23,7 @@ import org.apache.spark.mllib.linalg.Vector;
 
 /**
  * Define the contract that a HistogramHelper should implement
+ * 
  * @author erangap@wso2.com
  */
 public interface IHistogramHelper {
@@ -32,7 +33,7 @@ public interface IHistogramHelper {
 
 	// Will return the parentId @ given level
 	public abstract int getParentId(int level, int id);
-	
+
 	// Will return the No of Dimensions that has been added
 	public abstract int getNoofDimensions();
 

@@ -31,7 +31,7 @@ import org.apache.spark.mllib.regression.LabeledPoint;
 import org.wso2.carbon.lrtest.LogisticRegresionTester.ParsePoint;
 
 public class GetMinMax {
-	
+
 	private static double[] min = new double[13];
 	private static double[] max = new double[13];
 	private static JavaSparkContext sc;
@@ -85,18 +85,18 @@ public class GetMinMax {
 		sc = new JavaSparkContext(sContext); // "local[4]", "JavaLR");
 		JavaRDD<String> trainingData = readData(
 				"/Users/erangap/Documents/ML_Project/datasets/trainImputedNormalized.csv",
-				"Id"); //.sample(false, 0.01, 11L);
+				"Id"); // .sample(false, 0.01, 11L);
 		for (int i = 0; i < min.length; i++) {
 			min[i] = Double.POSITIVE_INFINITY;
 			max[i] = Double.NEGATIVE_INFINITY;
 		}
 		JavaRDD<LabeledPoint> points = trainingData.map(new ParsePoint());
 		points.foreach(new VoidFunction<LabeledPoint>() {
-			
+
 			private static final long serialVersionUID = -1174715752445463504L;
 
 			public void call(LabeledPoint lbPoint) throws Exception {
-//				System.out.println(lbPoint.label());
+				// System.out.println(lbPoint.label());
 				double[] readval = lbPoint.features().toArray();
 				for (int i = 0; i < 13; i++) {
 					if (min[i] > readval[i])
@@ -107,7 +107,8 @@ public class GetMinMax {
 			}
 		});
 		for (int i = 0; i < min.length; i++) {
-			System.out.println("Column " + i + " (Min,Max) ->(" + min[i] + "," + max[i] + ")");
+			System.out.println("Column " + i + " (Min,Max) ->(" + min[i] + ","
+					+ max[i] + ")");
 		}
 	}
 

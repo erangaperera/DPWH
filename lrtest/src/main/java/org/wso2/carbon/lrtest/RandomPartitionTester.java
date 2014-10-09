@@ -14,10 +14,9 @@ import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.api.java.function.Function;
 import org.apache.spark.mllib.linalg.Vectors;
 import org.apache.spark.mllib.regression.LabeledPoint;
-import org.apache.spark.storage.StorageLevel;
 
 public class RandomPartitionTester {
-	
+
 	private static JavaSparkContext sc;
 
 	@SuppressWarnings("serial")
@@ -48,74 +47,80 @@ public class RandomPartitionTester {
 		if (headerRowSkippingCriteria == null) {
 			lines = sc.textFile(fileLocation);
 		} else {
-			lines = sc.textFile(fileLocation)
-					.filter(new Function<String, Boolean>() {
+			lines = sc.textFile(fileLocation).filter(
+					new Function<String, Boolean>() {
 						public Boolean call(String line) {
 							if (line.contains(headerRowSkippingCriteria)) {
 								System.out.println(line);
 								return false;
 							} else
-								return !(line.contains(headerRowSkippingCriteria));
+								return !(line
+										.contains(headerRowSkippingCriteria));
 						}
 					});
 		}
 		return lines;
 	}
-	
+
 	public static void main(String[] args) {
-		
-		 SparkConf sContext = new SparkConf();
-		 sContext.setMaster("local");
-		 sContext.setAppName("JavaLR");
-		 sContext.set("spark.executor.memory", "4G");
-		
+
+		SparkConf sContext = new SparkConf();
+		sContext.setMaster("local[4]");
+		sContext.setAppName("JavaLR");
+		sContext.set("spark.executor.memory", "4G");
+
 		Logger.getRootLogger().setLevel(Level.OFF);
-		sc = new JavaSparkContext(sContext); //"local[4]", "JavaLR");
+		sc = new JavaSparkContext(sContext); // "local[4]", "JavaLR");
 		JavaRDD<String> trainingData = readData(
 				"/Users/erangap/Documents/ML_Project/datasets/trainImputedNormalized.csv",
 				"Id").sample(false, 0.1, 11L);
 		JavaRDD<String> testdata = readData(
 				"/Users/erangap/Documents/ML_Project/datasets/testImputedNormalized.csv",
 				"Id").sample(false, 0.1, 11L);
-		
+
 		// trainingData.saveAsTextFile("/Users/erangap/Documents/ML_Project/datasets/reduced.csv");
 		JavaRDD<LabeledPoint> points = trainingData.map(new ParsePoint());
-		//points.persist(StorageLevel.MEMORY_AND_DISK());
+		// points.persist(StorageLevel.MEMORY_AND_DISK());
 		// System.out.println(points.first().features());
 		JavaRDD<LabeledPoint> testPoints = testdata.map(new ParsePoint());
-		//testPoints.persist(StorageLevel.MEMORY_AND_DISK());
-		
+		// testPoints.persist(StorageLevel.MEMORY_AND_DISK());
+
 		System.out.println("Total number of records -> " + points.count());
-		
+
 		RandomPartitionedEnSembler ensembler = new RandomPartitionedEnSembler();
-		ensembler.setNoofModels(3);
+		ensembler.setNoofModels(32);
 		ensembler.setThreshold(0.499999);
-		
+
 		DateFormat dateFormat = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss");
 		String trainStart = dateFormat.format(Calendar.getInstance().getTime());
 		ensembler.train(points);
 		String trainEnd = dateFormat.format(Calendar.getInstance().getTime());
-		
+
 		System.out.println("Training Started at -> " + trainStart);
 		System.out.println("Training Ended at -> " + trainEnd);
 
-		JavaRDD<Double> testingLabels = testPoints.map(new Function<LabeledPoint, Double>() {
-            
-			private static final long serialVersionUID = -6597374940461185814L;
-			public Double call(LabeledPoint dataPoint) throws Exception {
-                return dataPoint.label();
-            }
-        }).cache();
+		JavaRDD<Double> testingLabels = testPoints.map(
+				new Function<LabeledPoint, Double>() {
+
+					private static final long serialVersionUID = -6597374940461185814L;
+
+					public Double call(LabeledPoint dataPoint) throws Exception {
+						return dataPoint.label();
+					}
+				}).cache();
 		List<Double> classLabels = testingLabels.toArray();
-		String predictStart = dateFormat.format(Calendar.getInstance().getTime());
-		List<Double> predictedLabels = ensembler.voteAndPredit(testPoints).toArray();
-        String predictEnd = dateFormat.format(Calendar.getInstance().getTime());
-        
-        System.out.println("Prediction Started at -> " + predictStart);
+		String predictStart = dateFormat.format(Calendar.getInstance()
+				.getTime());
+		List<Double> predictedLabels = ensembler.voteAndPredit(testPoints)
+				.toArray();
+		String predictEnd = dateFormat.format(Calendar.getInstance().getTime());
+
+		System.out.println("Prediction Started at -> " + predictStart);
 		System.out.println("Prediction Ended at -> " + predictEnd);
-        
-		System.out.println("Testing accuracy (%): " + Metrics.accuracy(classLabels, predictedLabels));
-		
+
+		System.out.println("Testing accuracy (%): "
+				+ Metrics.accuracy(classLabels, predictedLabels));
+
 	}
 
 }

@@ -22,32 +22,32 @@ import java.util.List;
 
 public class Metrics {
 
-    public static double accuracy(double[] actual, double[] predicted){
+	public static double accuracy(double[] actual, double[] predicted) {
 
-        assert (actual.length == predicted.length);
+		assert (actual.length == predicted.length);
 
-        double accuracy = 0.0;
-        for(int i=0; i<actual.length;i++){
-            if ( predicted[i] == actual[i]){
-                accuracy++;
-            }
-        }
+		double accuracy = 0.0;
+		for (int i = 0; i < actual.length; i++) {
+			if (predicted[i] == actual[i]) {
+				accuracy++;
+			}
+		}
 
-        return (accuracy/actual.length) * 100.0;
-    }
+		return (accuracy / actual.length) * 100.0;
+	}
 
-    public static double accuracy(List<Double> actual, List<Double> predicted){
+	public static double accuracy(List<Double> actual, List<Double> predicted) {
 
-        assert (actual.size() == predicted.size());
+		assert (actual.size() == predicted.size());
 
-        double accuracy = 0.0;
-        for(int i=0; i<actual.size();i++){
-            if ( predicted.get(i).doubleValue() == actual.get(i).doubleValue()){
-                accuracy++;
-            }
-        }
+		double accuracy = 0.0;
+		for (int i = 0; i < actual.size(); i++) {
+			if (predicted.get(i).doubleValue() == actual.get(i).doubleValue()) {
+				accuracy++;
+			}
+		}
 
-        return (accuracy/actual.size()) * 100.0;
-    }
+		return (accuracy / actual.size()) * 100.0;
+	}
 
 }

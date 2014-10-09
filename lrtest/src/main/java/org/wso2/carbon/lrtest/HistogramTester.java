@@ -12,15 +12,32 @@ import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.api.java.function.Function;
-import org.apache.spark.mllib.classification.LogisticRegressionModel;
-import org.apache.spark.mllib.classification.LogisticRegressionWithSGD;
 import org.apache.spark.mllib.linalg.Vectors;
 import org.apache.spark.mllib.regression.LabeledPoint;
-import org.wso2.carbon.lrtest.LogisticRegresionTester.ParsePoint;
 
 public class HistogramTester {
 
 	private static JavaSparkContext sc;
+	
+	@SuppressWarnings("serial")
+	static class ParsePoint implements Function<String, LabeledPoint> {
+
+		private static final Pattern COMMA = Pattern.compile(",");
+
+		// for Upuls dataset
+		public LabeledPoint call(String line) {
+			Logger logger = Logger.getLogger(this.getClass());
+			logger.debug(line);
+			// System.out.println(line);
+			String[] parts = COMMA.split(line);
+			double y = Double.parseDouble(parts[0]);
+			double[] x = new double[parts.length - 1];
+			for (int i = 1; i < parts.length; ++i) {
+				x[i - 1] = Double.parseDouble(parts[i]);
+			}
+			return new LabeledPoint(y, Vectors.dense(x));
+		}
+	}
 
 	private static final Pattern COMMA = Pattern.compile(",");
 
@@ -64,11 +81,11 @@ public class HistogramTester {
 	public static void main(String[] args) {
 
 		SparkConf sContext = new SparkConf();
-		sContext.setMaster("local");
+		sContext.setMaster("local[4]");
 		sContext.setAppName("JavaLR2");
 		sContext.set("spark.executor.memory", "4G");
 
-	    Logger.getRootLogger().setLevel(Level.OFF);
+	    Logger.getRootLogger().setLevel(Level.DEBUG);
 		sc = new JavaSparkContext(sContext); // "local[4]", "JavaLR");
 		JavaRDD<String> trainingData = readData(
 				"/Users/erangap/Documents/ML_Project/datasets/trainImputedNormalized.csv",
@@ -82,11 +99,11 @@ public class HistogramTester {
 		System.out.println("Total number of records -> " + points.count());
 		
 		HistogramHelper histogramHelper = new HistogramHelper();
-		histogramHelper.addDimension(0, 0.0, 1, 8);
-		histogramHelper.addDimension(1, 0.0, 1, 8);
-		histogramHelper.addDimension(2, 0.0, 1, 8);
-		histogramHelper.addDimension(3, 0.0, 1, 8);
-		histogramHelper.addDimension(4, 0.0, 1, 8);
+		histogramHelper.addDimension(0, 0.0, 1, 10);
+		histogramHelper.addDimension(1, 0.0, 1, 10);
+		histogramHelper.addDimension(2, 0.0, 1, 10);
+		histogramHelper.addDimension(3, 0.0, 1, 10);
+		histogramHelper.addDimension(4, 0.0, 1, 10);
 		HistogramEnsembler ensembler = new HistogramEnsembler(histogramHelper, 32);
 		ensembler.setThreshold(0.499999);
 		

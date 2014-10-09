@@ -51,14 +51,15 @@ public class LogisticRegresionTester {
 		if (headerRowSkippingCriteria == null) {
 			lines = sc.textFile(fileLocation);
 		} else {
-			lines = sc.textFile(fileLocation)
-					.filter(new Function<String, Boolean>() {
+			lines = sc.textFile(fileLocation).filter(
+					new Function<String, Boolean>() {
 						public Boolean call(String line) {
 							if (line.contains(headerRowSkippingCriteria)) {
 								System.out.println(line);
 								return false;
 							} else
-								return !(line.contains(headerRowSkippingCriteria));
+								return !(line
+										.contains(headerRowSkippingCriteria));
 						}
 					});
 		}
@@ -68,13 +69,13 @@ public class LogisticRegresionTester {
 	@SuppressWarnings("serial")
 	public static void main(String[] args) {
 
-		 SparkConf sContext = new SparkConf();
-		 sContext.setMaster("local");
-		 sContext.setAppName("JavaLR");
-		 sContext.set("spark.executor.memory", "4G");
-		
+		SparkConf sContext = new SparkConf();
+		sContext.setMaster("local");
+		sContext.setAppName("JavaLR");
+		sContext.set("spark.executor.memory", "4G");
+
 		Logger.getRootLogger().setLevel(Level.OFF);
-		sc = new JavaSparkContext(sContext); //"local[4]", "JavaLR");
+		sc = new JavaSparkContext(sContext); // "local[4]", "JavaLR");
 		JavaRDD<String> trainingData = readData(
 				"/Users/erangap/Documents/ML_Project/datasets/trainImputedNormalized.csv",
 				"Id").sample(false, 0.1, 11L);
@@ -88,40 +89,45 @@ public class LogisticRegresionTester {
 		// System.out.println(points.first().features());
 		JavaRDD<LabeledPoint> testPoints = testdata.map(new ParsePoint());
 		testPoints.persist(StorageLevel.MEMORY_AND_DISK());
-		
+
 		System.out.println("Total number of records -> " + points.count());
 
 		DateFormat dateFormat = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss");
 		String trainStart = dateFormat.format(Calendar.getInstance().getTime());
-		LogisticRegressionModel model = LogisticRegressionWithSGD.train(points.rdd(), 10);
+		LogisticRegressionModel model = LogisticRegressionWithSGD.train(
+				points.rdd(), 10);
 		String trainEnd = dateFormat.format(Calendar.getInstance().getTime());
-		model.setThreshold(0.499999); 
-		
+		model.setThreshold(0.499999);
+
 		System.out.println("Training Started at -> " + trainStart);
 		System.out.println("Training Ended at -> " + trainEnd);
-		
-		// JavaRDD<LabeledPoint> testdata = points.sample(false, 0.1);
-        JavaRDD<Vector> testingFeatures = testPoints.map(new Function<LabeledPoint, Vector>() {
-            public Vector call(LabeledPoint label) throws Exception {
-                return label.features();
-            }
-        }).cache();
 
-        JavaRDD<Double> testingLabels = testPoints.map(new Function<LabeledPoint, Double>() {
-            public Double call(LabeledPoint dataPoint) throws Exception {
-                return dataPoint.label();
-            }
-        }).cache();
-        
-        List<Double> classLabels = testingLabels.toArray();
-        String predictStart = dateFormat.format(Calendar.getInstance().getTime());
-        List<Double> predictedLabels = model.predict(testingFeatures).toArray();
-        String predictEnd = dateFormat.format(Calendar.getInstance().getTime());
-        
-        System.out.println("Prediction Started at -> " + predictStart);
+		// JavaRDD<LabeledPoint> testdata = points.sample(false, 0.1);
+		JavaRDD<Vector> testingFeatures = testPoints.map(
+				new Function<LabeledPoint, Vector>() {
+					public Vector call(LabeledPoint label) throws Exception {
+						return label.features();
+					}
+				}).cache();
+
+		JavaRDD<Double> testingLabels = testPoints.map(
+				new Function<LabeledPoint, Double>() {
+					public Double call(LabeledPoint dataPoint) throws Exception {
+						return dataPoint.label();
+					}
+				}).cache();
+
+		List<Double> classLabels = testingLabels.toArray();
+		String predictStart = dateFormat.format(Calendar.getInstance()
+				.getTime());
+		List<Double> predictedLabels = model.predict(testingFeatures).toArray();
+		String predictEnd = dateFormat.format(Calendar.getInstance().getTime());
+
+		System.out.println("Prediction Started at -> " + predictStart);
 		System.out.println("Prediction Ended at -> " + predictEnd);
-        
-		System.out.println("Testing accuracy (%): " + Metrics.accuracy(classLabels, predictedLabels));
+
+		System.out.println("Testing accuracy (%): "
+				+ Metrics.accuracy(classLabels, predictedLabels));
 	}
 
 }
