@@ -34,10 +34,23 @@ import org.apache.spark.storage.StorageLevel;
 import scala.Serializable;
 import scala.Tuple2;
 
+/**
+ *	This will encapsulate the logic for Histogram aided ensembling
+ */
 public class HistogramEnsembler implements Serializable {
 
 	private static final long serialVersionUID = 5904878364429620103L;
+	private Map<Integer, LogisticRegressionModel> models = new HashMap<Integer, LogisticRegressionModel>();
+	private int noofBins = 0;
+	private IHistogramHelper histogramHelper;
+	private static HistogramTree histogramTree;
+	private double threshold = 0.5;
+	private int[] binGroups;	
 
+	
+	/**
+	 *	Provides filtering for a JavaPairRDD who belongs to the specified group
+	 */
 	private final class HistogramFilter implements
 			Function<Tuple2<Integer, LabeledPoint>, Boolean> {
 
@@ -49,23 +62,21 @@ public class HistogramEnsembler implements Serializable {
 		}
 
 		public Boolean call(Tuple2<Integer, LabeledPoint> in) throws Exception {
-			// int binGroup = binGroups.get(in._1);
 			int binGroup = binGroups[in._1];
 			return (binGroup == binGroupFilter);
 		}
 	}
 
-	private Map<Integer, LogisticRegressionModel> models = new HashMap<Integer, LogisticRegressionModel>();
-	private int noofBins = 0;
-	private IHistogramHelper histogramHelper;
-	private static HistogramTree histogramTree;
-	private double threshold = 0.5;
-	private int[] binGroups;
-
 	public void setThreshold(double threshold) {
 		this.threshold = threshold;
 	}
 
+	/**
+	 * A histogram helper implementation should be passed with the constructor.
+	 * 
+	 * @param histogramHelper
+	 * @param noofBins
+	 */
 	public HistogramEnsembler(IHistogramHelper histogramHelper, int noofBins) {
 		this.noofBins = noofBins;
 		this.histogramHelper = histogramHelper;
@@ -75,7 +86,8 @@ public class HistogramEnsembler implements Serializable {
 	public void train(JavaRDD<LabeledPoint> data) {
 
 		// Create all possible bins on the tree to avoid
-		// Inconsistencies within groups
+		// Inconsistencies within groups identified in training 
+		// dataset and test dataset
 		int noofDimensions = histogramHelper.getNoofDimensions();
 		int reqNoofBins = 1;
 		for (int i = 0; i < noofDimensions; i++) {
@@ -85,6 +97,7 @@ public class HistogramEnsembler implements Serializable {
 			histogramTree.AddNode(i, 0);
 		}
 
+		// Construct the JavaPairRDD and Histogram simultaneously
 		JavaPairRDD<Integer, LabeledPoint> binMappedData = data
 				.mapToPair(new PairFunction<LabeledPoint, Integer, LabeledPoint>() {
 
@@ -104,10 +117,12 @@ public class HistogramEnsembler implements Serializable {
 		binMappedData.count();
 		binMappedData.persist(StorageLevel.MEMORY_AND_DISK());
 
+		// Group the bin into the number specified
 		Map<Integer, Integer[]> binGroupArray = histogramTree
 				.groupBins(noofBins);
 
-		// Sometime the actual no of bin will be varied from the desired
+		// Sometime the actual no of bin will be varied from the desired, 
+		// therefore read back the actual no. of groups
 		noofBins = binGroupArray.size();
 		binGroups = new int[reqNoofBins];
 		for (int i = 0; i < noofBins; i++) {
@@ -117,6 +132,7 @@ public class HistogramEnsembler implements Serializable {
 			}
 		}
 
+		// For each group train a specialized model
 		for (int i = 0; i < noofBins; i++) {
 			JavaPairRDD<Integer, LabeledPoint> modeldata = binMappedData
 					.filter(new HistogramFilter(i));
@@ -129,22 +145,27 @@ public class HistogramEnsembler implements Serializable {
 		}
 	}
 
+	/**
+	 * Predict a single value
+	 * 
+	 * @param v
+	 * @return double
+	 */
 	public double predict(Vector v) {
 
+		// Identify and pick the correct model
 		int binNo = histogramHelper.getBinNo(v);
 		int binGroup = binGroups[binNo];
-
-		/*
-		 * This condition was experienced due to training data missing some bin
-		 * that are there in the testing
-		 */
-		// if (binGroups.containsKey(binNo))
-		// binGroup = binGroups.get(binNo);
-		// else
-		// return 0.0;
 		return models.get(binGroup).predict(v);
+		
 	}
 
+	/**
+	 * Predict multiple values
+	 * 
+	 * @param labelpoints
+	 * @return
+	 */
 	public JavaRDD<Double> predit(JavaRDD<LabeledPoint> labelpoints) {
 
 		return labelpoints.map(new Function<LabeledPoint, Double>() {
