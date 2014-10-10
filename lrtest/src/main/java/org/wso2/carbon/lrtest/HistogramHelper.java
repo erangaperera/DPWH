@@ -27,7 +27,6 @@ import org.apache.spark.mllib.linalg.Vector;
 /**
  * The Implementation of the HistogramHelper
  * 
- * @author erangap@wso2.com
  */
 public class HistogramHelper implements Serializable, IHistogramHelper {
 
@@ -104,10 +103,8 @@ public class HistogramHelper implements Serializable, IHistogramHelper {
 				.get(dimension)));
 	}
 
-	// Will return the BinNo based on the selected dimensions of the Histogram
-	/*
-	 * (non-Javadoc)
-	 * 
+	/**
+	 * Will return the BinNo based on the selected dimensions of the Histogram
 	 * @see
 	 * lrtest.IHistogramHelper#getBinNo(org.apache.spark.mllib.linalg.Vector)
 	 */
@@ -115,13 +112,9 @@ public class HistogramHelper implements Serializable, IHistogramHelper {
 		double[] elements = v.toArray();
 		int tempValue = 0;
 		for (int i = 0; i < dimensions.size(); i++) {
-			tempValue += getFeatureSplitNo(i, elements[this.dimensions.get(i)])
-					* this.multiplier.get(i);
+			tempValue = tempValue + (getFeatureSplitNo(i, elements[this.dimensions.get(i)])
+					* this.multiplier.get(i));
 		}
-		// for (int dimension : this.dimensions) {
-		// tempValue += getFeatureSplitNo(dimension, elements[dimension]) *
-		// this.multiplier.get(dimension);
-		// }
 		return tempValue;
 	}
 
@@ -136,9 +129,8 @@ public class HistogramHelper implements Serializable, IHistogramHelper {
 		this.multiplier.clear();
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * 
+	/**
+	 * Provides the Id of parent @ given level in the tree
 	 * @see lrtest.IHistogramHelper#getParentId(int, int)
 	 */
 	public int getParentId(int level, int id) {
@@ -146,24 +138,22 @@ public class HistogramHelper implements Serializable, IHistogramHelper {
 		int parentId = 0;
 		for (int i = 0; i < level; i++) {
 			int axispoint = remainder / this.multiplier.get(i);
-			remainder -= (axispoint * this.multiplier.get(i));
-			parentId += axispoint * this.multiplier.get(i);
+			remainder = remainder - (axispoint * this.multiplier.get(i));
+			parentId = parentId + (axispoint * this.multiplier.get(i));
 		}
 		return parentId;
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * 
+	/**
+	 * Returns the number of Dimensions
 	 * @see lrtest.IHistogramHelper#getNoofDimensions()
 	 */
 	public int getNoofDimensions() {
 		return this.dimensions.size();
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * 
+	/**
+	 * Returns a vector representation of the given coordinate
 	 * @see lrtest.IHistogramHelper#getCordinate(int)
 	 */
 	public int[] getCordinate(int id) {
@@ -172,15 +162,14 @@ public class HistogramHelper implements Serializable, IHistogramHelper {
 		int[] cordinates = new int[noofDimensions];
 		for (int i = 0; i < noofDimensions; i++) {
 			int axispoint = remainder / this.multiplier.get(i);
-			remainder -= (axispoint * this.multiplier.get(i));
+			remainder = remainder - (axispoint * this.multiplier.get(i));
 			cordinates[i] = axispoint;
 		}
 		return cordinates;
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * 
+	/**
+	 * Returns the no of splits along the given dimension
 	 * @see lrtest.IHistogramHelper#getSplits(int)
 	 */
 	public int getSplits(int level) {

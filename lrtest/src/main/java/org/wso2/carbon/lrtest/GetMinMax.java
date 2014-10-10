@@ -106,7 +106,6 @@ public class GetMinMax {
 		sContext.set("spark.executor.memory", "4G");
 
 		// Create Spark context
-		// Logger.getRootLogger().setLevel(Level.OFF);
 		sc = new JavaSparkContext(sContext); // "local[4]", "JavaLR");
 		JavaRDD<String> trainingData = readData(
 				"/Users/erangap/Documents/ML_Project/datasets/trainImputedNormalized.csv",
