@@ -9,19 +9,65 @@ import org.junit.Test;
 import org.wso2.carbon.lrtest.HistogramHelper;
 import org.wso2.carbon.lrtest.HistogramTree;
 
+@SuppressWarnings("deprecation")
 public class TestHistogramTree {
 
 	@Test
-	public void testHistogramGrouping() {
+	public void testGroupsofEqualSize() {
+
+		// Create sample bins
+		int size = 8 * 8 * 8; // Dimensions - 8 x 8 x 8
+		int[] bins = new int[size];
+		for (int i = 0; i < 10000; i++) {
+			int frequency = (int) (Math.random() * 3);
+			bins[(int) (Math.random() * size)] += frequency;
+		}
 
 		HistogramHelper histhelper = new HistogramHelper();
+		// Add multiple dimensions
+		histhelper.addDimensions(new int[] { 0, 1, 2 }, new double[] {
+		Double.NEGATIVE_INFINITY, Double.NEGATIVE_INFINITY,
+		Double.NEGATIVE_INFINITY }, new double[] {
+		Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY,
+		Double.POSITIVE_INFINITY }, new int[] { 8, 8, 8 });
+		
+		HistogramTree tree = new HistogramTree(histhelper);
+		int totFreq = 0;
+		for (int i = 0; i < bins.length; i++) {
+			tree.AddNode(i, bins[i]);
+			totFreq += bins[i];
+		}
+		
+		Map<Integer, Integer[]> bingroups = tree.groupBins(8);
+		double avg = totFreq / bingroups.size();
+		// Expected Group size +/- 10%
+		double expectedMin = avg * 0.9;
+		double expectedMax = avg * 1.1;
+		for (int i = 0; i < bingroups.size(); i++) {
+			Integer[] groups = bingroups.get(i);
+			double groupTot = 0.0;
+			for (Integer binId : groups) {
+				groupTot += bins[binId];
+			}
+			// System.out.println("Total -> " + groupTot + ", Min -> "+ expectedMin + ", Max -> " + expectedMax);
+			assertTrue("Bin Group total is lower than expected ", (groupTot > expectedMin));
+			assertTrue("Bin Group total is higher than expected ", (groupTot < expectedMax));
+		}
+
+	}
+
+	@Test
+	public void testGroupMembersAdjacent() {
+
+		HistogramHelper histhelper = new HistogramHelper();
+		
 		// Add multiple dimensions
 		histhelper.addDimensions(new int[] { 0, 1, 2 }, new double[] {
 				Double.NEGATIVE_INFINITY, Double.NEGATIVE_INFINITY,
 				Double.NEGATIVE_INFINITY }, new double[] {
 				Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY,
 				Double.POSITIVE_INFINITY }, new int[] { 8, 8, 8 });
-
+		
 		HistogramTree tree = new HistogramTree(histhelper);
 
 		// Populate the HistogramTree
@@ -57,7 +103,6 @@ public class TestHistogramTree {
 		}
 	}
 
-	@SuppressWarnings("deprecation")
 	private static Vector getVector(int[] cordinate) {
 		double cordinateArray[] = new double[cordinate.length];
 		for (int i = 0; i < cordinate.length; i++) {
