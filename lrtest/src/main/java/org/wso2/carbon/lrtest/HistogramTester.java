@@ -25,6 +25,8 @@ import java.util.Date;
 import java.util.List;
 import java.util.regex.Pattern;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 import org.apache.spark.SparkConf;
@@ -40,7 +42,7 @@ import org.apache.spark.mllib.regression.LabeledPoint;
 public class HistogramTester {
 
 	private static JavaSparkContext sc;
-	private static Logger logger = Logger.getRootLogger();
+	private static final Log LOGGER = LogFactory.getLog(HistogramTester.class);
 	
 	@SuppressWarnings("serial")
 	static class ParsePoint implements Function<String, LabeledPoint> {
@@ -49,7 +51,7 @@ public class HistogramTester {
 		
 		// Function for converting a csv line to a LabelPoint 
 		public LabeledPoint call(String line) {
-			logger.debug(line);
+			LOGGER.debug(line);
 			String[] parts = COMMA.split(line);
 			double y = Double.parseDouble(parts[0]);
 			double[] x = new double[parts.length - 1];

@@ -20,6 +20,8 @@ package org.wso2.carbon.lrtest;
 
 import java.util.regex.Pattern;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 import org.apache.spark.SparkConf;
@@ -38,7 +40,7 @@ public class GetMinMax {
 	private static double[] min = new double[13];
 	private static double[] max = new double[13];
 	private static JavaSparkContext sc;
-	private static Logger logger = Logger.getRootLogger();
+	private static final Log LOGGER = LogFactory.getLog(GetMinMax.class);
 	
 	@SuppressWarnings("serial")
 	static class ParsePoint implements Function<String, LabeledPoint> {
@@ -48,7 +50,7 @@ public class GetMinMax {
 		// Function for converting a csv line to a LabelPoint 
 		public LabeledPoint call(String line) {
 			
-			logger.debug(line);
+			LOGGER.debug(line);
 			String[] parts = COMMA.split(line);
 			double y = Double.parseDouble(parts[0]);
 			double[] x = new double[parts.length - 1];
@@ -102,7 +104,7 @@ public class GetMinMax {
 		// Construction of Spark Configuration
 		SparkConf sContext = new SparkConf();
 		sContext.setMaster("local[4]");
-		sContext.setAppName("JavaLR2");
+		sContext.setAppName("JavaLR");
 		sContext.set("spark.executor.memory", "4G");
 
 		// Create Spark context
@@ -137,11 +139,11 @@ public class GetMinMax {
 			}
 		});
 		
-		// Should execute only if Log level is debug
-		if (logger.getLevel() == Level.DEBUG)
+		// Should execute only if Log level is DebugEnabled
+		if (LOGGER.isDebugEnabled())
 		{
 			for (int i = 0; i < min.length; i++) {
-				logger.debug("Column " + i + " (Min,Max) ->(" + min[i] + ","
+				LOGGER.debug("Column " + i + " (Min,Max) ->(" + min[i] + ","
 						+ max[i] + ")");
 			}
 		}

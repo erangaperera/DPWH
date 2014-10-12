@@ -22,12 +22,12 @@ import java.io.Serializable;
 import java.util.Map;
 import java.util.TreeMap;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.apache.log4j.Logger;
 
 /**
  * This class will hold the structure of a histogram
- * 
- * @author erangap
  */
 public class HistogramTree implements Serializable {
 
@@ -40,7 +40,8 @@ public class HistogramTree implements Serializable {
 	private final Map<Integer, HistogramTree> children = new TreeMap<Integer, HistogramTree>();
 	private boolean leafLevel;
 	private int groupId = 0;
-
+	private static final Log LOGGER = LogFactory.getLog(HistogramTree.class);
+	
 	public int getId() {
 		return id;
 	}
@@ -53,14 +54,23 @@ public class HistogramTree implements Serializable {
 		return subTotal;
 	}
 
-	// Public constructor to create the Root Node
+	/**
+	 * Public constructor to create the Root Node
+	 * @param histogramHelper
+	 */
 	public HistogramTree(IHistogramHelper histogramHelper) {
 		this.level = 0;
 		this.leafLevel = false;
 		this.histogramHelper = histogramHelper;
 	}
 
-	// This will only Allow node addition through the Root.
+	/**
+	 * Private constructor for creating non root levels, 
+	 * This will only Allow node addition through the Root objects AddNode
+	 * @param histogramHelper
+	 * @param level
+	 * @param id
+	 */
 	private HistogramTree(IHistogramHelper histogramHelper, int level, int id) {
 
 		this.id = id;
@@ -74,7 +84,11 @@ public class HistogramTree implements Serializable {
 		return children;
 	}
 
-	// This will create / Update relevant child nodes
+	/**
+	 * This will create / Update relevant child node
+	 * @param id
+	 * @param subTotal
+	 */
 	public void AddNode(int id, int subTotal) {
 
 		// Update sub-totals
@@ -89,8 +103,6 @@ public class HistogramTree implements Serializable {
 		int parentId = this.histogramHelper.getParentId(nextLevel, id);
 		if (this.children.containsKey(parentId)) {
 			HistogramTree parent = this.children.get(parentId);
-
-			// parent.subTotal += subTotal;
 			parent.AddNode(id, subTotal);
 		} else {
 			HistogramTree parent = new HistogramTree(this.histogramHelper,
@@ -100,7 +112,11 @@ public class HistogramTree implements Serializable {
 		}
 	}
 
-	// This will group the adjacent bins of roughly equal size
+	/**
+	 * This will group the adjacent bins of roughly equal size
+	 * @param noofBins
+	 * @return
+	 */
 	public Map<Integer, Integer[]> groupBins(int noofBins) {
 		int noofDimensions = histogramHelper.getNoofDimensions();
 		double divideFactor = Math.pow(noofBins, (1.0 / noofDimensions));
@@ -109,7 +125,7 @@ public class HistogramTree implements Serializable {
 		Logger.getRootLogger().debug("Required No. of bins -> " + noofBins);
 		return groupBins(children, 0, this.subTotal, divideFactor);
 	}
-
+	
 	// We will use recursion to navigate deep into the tree
 	private Map<Integer, Integer[]> groupBins(
 			Map<Integer, HistogramTree> subtree, int level, double subTotal,
@@ -146,10 +162,12 @@ public class HistogramTree implements Serializable {
 						tempTree.putAll(node.getChildren());
 					}
 				}
-				nextLoopTotal += (node.getCordinate()[level] == i + 1) ? node
-						.getSubTotal() : 0;
+				if (node.getCordinate()[level] == i + 1){
+					nextLoopTotal = nextLoopTotal + node.getSubTotal();
+				}
+				//	nextLoopTotal += (node.getCordinate()[level] == i + 1) ? node.getSubTotal() : 0;
 			}
-			splitTotal += loopTotal;
+			splitTotal = splitTotal + loopTotal;
 			nextTree.putAll(tempTree);
 
 			// Needs some improvement Here
@@ -164,7 +182,7 @@ public class HistogramTree implements Serializable {
 							divideFactor));
 				}
 				// Current sub-total is sent for the next level to iterate,
-				// therefore clear
+				// therefore clear the values
 				nextTree.clear();
 				splitTotal = 0;
 			} else {
@@ -183,10 +201,13 @@ public class HistogramTree implements Serializable {
 						divideFactor));
 			}
 		}
-
 		return binGroup;
 	}
 
+	/**
+	 * Actual creation of groups will take place at the leaf level
+	 * @param tree
+	 */
 	private Map<Integer, Integer[]> createGroup(Map<Integer, HistogramTree> tree) {
 
 		Map<Integer, Integer[]> temp = new TreeMap<Integer, Integer[]>();
@@ -199,9 +220,7 @@ public class HistogramTree implements Serializable {
 			i++;
 		}
 		temp.put(groupId, bins);
-
-		Logger.getRootLogger().debug(
-				"Group created -> " + groupId + ", Total -> " + groupTotal);
+		LOGGER.debug("Group created -> " + groupId + ", Total -> " + groupTotal);
 		groupId++;
 		return temp;
 	}

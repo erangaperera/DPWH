@@ -103,6 +103,7 @@ public class TestHistogramTree {
 		}
 	}
 
+	// Get the vector of given coordinate array, Vector has inbuilt support for calculations
 	private static Vector getVector(int[] cordinate) {
 		double cordinateArray[] = new double[cordinate.length];
 		for (int i = 0; i < cordinate.length; i++) {

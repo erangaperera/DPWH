@@ -20,8 +20,16 @@ package org.wso2.carbon.lrtest;
 
 import java.util.List;
 
+/**
+ * Encapsulates the logic of calculating accuracy 
+ */
 public class Metrics {
 
+	/**
+	 * @param actual
+	 * @param predicted
+	 * @return
+	 */
 	public static double accuracy(double[] actual, double[] predicted) {
 
 		assert (actual.length == predicted.length);
@@ -36,6 +44,11 @@ public class Metrics {
 		return (accuracy / actual.length) * 100.0;
 	}
 
+	/**
+	 * @param actual
+	 * @param predicted
+	 * @return
+	 */
 	public static double accuracy(List<Double> actual, List<Double> predicted) {
 
 		assert (actual.size() == predicted.size());

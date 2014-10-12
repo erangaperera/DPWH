@@ -3,6 +3,7 @@ package org.wso2.carbon.lrtest;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
+import java.util.Date;
 import java.util.List;
 import java.util.regex.Pattern;
 
@@ -15,6 +16,9 @@ import org.apache.spark.api.java.function.Function;
 import org.apache.spark.mllib.linalg.Vectors;
 import org.apache.spark.mllib.regression.LabeledPoint;
 
+/**
+ * Main class for performing the random partition based model ensembler evaluation
+ */
 public class RandomPartitionTester {
 
 	private static JavaSparkContext sc;
@@ -24,7 +28,7 @@ public class RandomPartitionTester {
 
 		private static final Pattern COMMA = Pattern.compile(",");
 
-		// for Upuls dataset
+		// Function for converting a csv line to a LabelPoint 
 		public LabeledPoint call(String line) {
 			Logger logger = Logger.getLogger(this.getClass());
 			logger.debug(line);
@@ -39,6 +43,12 @@ public class RandomPartitionTester {
 		}
 	}
 
+	/**
+	 * This method will read a file into a JavaRDD
+	 * @param fileLocation
+	 * @param headerRowSkippingCriteria
+	 * @return
+	 */
 	@SuppressWarnings("serial")
 	private static JavaRDD<String> readData(String fileLocation,
 			final String headerRowSkippingCriteria) {
@@ -62,15 +72,21 @@ public class RandomPartitionTester {
 		return lines;
 	}
 
+	/**
+	 * Main method for performing the random partition based model ensembler evaluation
+	 */
 	public static void main(String[] args) {
 
+		// Construction of Spark Configuration
 		SparkConf sContext = new SparkConf();
 		sContext.setMaster("local[4]");
 		sContext.setAppName("JavaLR");
 		sContext.set("spark.executor.memory", "4G");
 
-		Logger.getRootLogger().setLevel(Level.OFF);
+		// Creates the spark context
 		sc = new JavaSparkContext(sContext); // "local[4]", "JavaLR");
+
+		// Load train and test data
 		JavaRDD<String> trainingData = readData(
 				"/Users/erangap/Documents/ML_Project/datasets/trainImputedNormalized.csv",
 				"Id").sample(false, 0.1, 11L);
@@ -91,14 +107,21 @@ public class RandomPartitionTester {
 		ensembler.setNoofModels(32);
 		ensembler.setThreshold(0.499999);
 
+		// Perform the training
 		DateFormat dateFormat = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss");
-		String trainStart = dateFormat.format(Calendar.getInstance().getTime());
+		Date trainStartTime = Calendar.getInstance().getTime();
+		String trainStart = dateFormat.format(trainStartTime);
 		ensembler.train(points);
-		String trainEnd = dateFormat.format(Calendar.getInstance().getTime());
-
+		Date trainEndTime = Calendar.getInstance().getTime();
+		String trainEnd = dateFormat.format(trainEndTime);
+		
+		// Training time calculations and console print
+		long trainElapsed = (trainEndTime.getTime() - trainStartTime.getTime()) / 1000;
 		System.out.println("Training Started at -> " + trainStart);
 		System.out.println("Training Ended at -> " + trainEnd);
+		System.out.println("Time Taken to Train -> " + trainElapsed + " Sec.");
 
+		// Prepare data for testing
 		JavaRDD<Double> testingLabels = testPoints.map(
 				new Function<LabeledPoint, Double>() {
 
@@ -109,15 +132,21 @@ public class RandomPartitionTester {
 					}
 				}).cache();
 		List<Double> classLabels = testingLabels.toArray();
-		String predictStart = dateFormat.format(Calendar.getInstance()
-				.getTime());
-		List<Double> predictedLabels = ensembler.voteAndPredit(testPoints)
-				.toArray();
-		String predictEnd = dateFormat.format(Calendar.getInstance().getTime());
-
-		System.out.println("Prediction Started at -> " + predictStart);
+		
+		// Perform the predictions
+		Date predictStartTime = Calendar.getInstance().getTime();
+		String predictStart = dateFormat.format(predictStartTime);
+		List<Double> predictedLabels = ensembler.voteAndPredit(testPoints).toArray();
+		Date predictEndTime = Calendar.getInstance().getTime();
+        String predictEnd = dateFormat.format(predictEndTime);
+        
+        // Predict time calculations and console print
+        long preditElapsed = (predictEndTime.getTime() - predictStartTime.getTime()) / 1000;
+        System.out.println("Prediction Started at -> " + predictStart);
 		System.out.println("Prediction Ended at -> " + predictEnd);
+		System.out.println("Time Taken to Predit -> " + preditElapsed + " Sec.");
 
+		// Calculate and Display the accuracy
 		System.out.println("Testing accuracy (%): "
 				+ Metrics.accuracy(classLabels, predictedLabels));
 

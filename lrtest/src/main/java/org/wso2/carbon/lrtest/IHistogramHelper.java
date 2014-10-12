@@ -23,8 +23,6 @@ import org.apache.spark.mllib.linalg.Vector;
 
 /**
  * Define the contract that a HistogramHelper should implement
- * 
- * @author erangap@wso2.com
  */
 public interface IHistogramHelper {
 

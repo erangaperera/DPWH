@@ -34,10 +34,16 @@ import org.apache.spark.mllib.linalg.Vector;
 import scala.Serializable;
 import scala.Tuple2;
 
+/**
+ * This will encapsulate the logic ensembling based on random partition
+ */
 public class RandomPartitionedEnSembler implements Serializable {
 
 	private static final long serialVersionUID = -3666105986831973419L;
 
+	/**
+	 * This class allows the filtering of a selected partition
+	 */
 	private final class PartionFilterFunction implements
 			Function<Tuple2<Integer, LabeledPoint>, Boolean> {
 
@@ -65,8 +71,13 @@ public class RandomPartitionedEnSembler implements Serializable {
 		this.threshold = threshold;
 	}
 
+	/**
+	 * expose a simple method that will allow multiple models to be trained based on the partition
+	 * @param data
+	 */
 	public void train(JavaRDD<LabeledPoint> data) {
 
+		// Identify the members randomly of required no. of partitions
 		JavaPairRDD<Integer, LabeledPoint> points = data
 				.flatMapToPair(new PairFlatMapFunction<LabeledPoint, Integer, LabeledPoint>() {
 
@@ -81,7 +92,7 @@ public class RandomPartitionedEnSembler implements Serializable {
 					}
 				});
 
-		// Invoke operation so PairRDD is evaluated
+		// Invoke operation so previous instructions for the PairRDD is evaluated
 		points.count();
 		points.persist(StorageLevel.MEMORY_AND_DISK());
 
@@ -95,6 +106,11 @@ public class RandomPartitionedEnSembler implements Serializable {
 		}
 	}
 
+	/**
+	 * Each model will independently make a prediction and final outcome is voted
+	 * @param Vector
+	 * @return double
+	 */
 	public double voteAndPredit(Vector v) {
 		double zero = 0, one = 0;
 		// Vote the prediction
@@ -114,6 +130,11 @@ public class RandomPartitionedEnSembler implements Serializable {
 		}
 	}
 
+	/**
+	 * Make multiple predictions
+	 * @param labelpoints
+	 * @return
+	 */
 	public JavaRDD<Double> voteAndPredit(JavaRDD<LabeledPoint> labelpoints) {
 		return labelpoints.map(new Function<LabeledPoint, Double>() {
 			private static final long serialVersionUID = -4629831955936964163L;
