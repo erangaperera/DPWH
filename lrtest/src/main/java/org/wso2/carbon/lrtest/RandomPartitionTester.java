@@ -13,8 +13,12 @@ import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.api.java.function.Function;
+import org.apache.spark.mllib.classification.LogisticRegressionModel;
+import org.apache.spark.mllib.evaluation.BinaryClassificationMetrics;
 import org.apache.spark.mllib.linalg.Vectors;
 import org.apache.spark.mllib.regression.LabeledPoint;
+
+import scala.Tuple2;
 
 /**
  * Main class for performing the random partition based model ensembler evaluation
@@ -149,7 +153,30 @@ public class RandomPartitionTester {
 		// Calculate and Display the accuracy
 		System.out.println("Testing accuracy (%): "
 				+ Metrics.accuracy(classLabels, predictedLabels));
+		BinaryClassificationMetrics binaryClassificationMetrics = getBinaryClassificationMatrix(ensembler, testPoints);
+		System.out.println("Area under the curve -> " + binaryClassificationMetrics.areaUnderROC());
 
+	}
+	
+	/**
+	 * This method calculates performance metrics for a given set of test scores and labels
+	 * @param ensembler
+	 * @param testingDataset
+	 * @return
+	 */
+	private static BinaryClassificationMetrics getBinaryClassificationMatrix(final RandomPartitionedEnSembler ensembler, JavaRDD<LabeledPoint> testingDataset){
+		JavaRDD<Tuple2<Object, Object>> scoreAndLabels = testingDataset.map(
+                new Function<LabeledPoint, Tuple2<Object, Object>>() {
+					
+                	private static final long serialVersionUID = 8275673381396280119L;
+
+					public Tuple2<Object, Object> call(LabeledPoint p) {
+                        Double score = ensembler.voteAndPredit(p.features());
+                        return new Tuple2<Object, Object>(score, p.label());
+                    }
+                }
+        );
+		return new BinaryClassificationMetrics(JavaRDD.toRDD(scoreAndLabels));
 	}
 
 }

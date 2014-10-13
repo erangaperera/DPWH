@@ -35,10 +35,13 @@ import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.api.java.function.Function;
 import org.apache.spark.mllib.classification.LogisticRegressionModel;
 import org.apache.spark.mllib.classification.LogisticRegressionWithSGD;
+import org.apache.spark.mllib.evaluation.BinaryClassificationMetrics;
 import org.apache.spark.mllib.linalg.Vector;
 import org.apache.spark.mllib.linalg.Vectors;
 import org.apache.spark.mllib.regression.LabeledPoint;
 import org.apache.spark.storage.StorageLevel;
+
+import scala.Tuple2;
 
 public class LogisticRegresionTester {
 
@@ -131,6 +134,7 @@ public class LogisticRegresionTester {
 				points.rdd(), 10);
 		Date trainEndTime = Calendar.getInstance().getTime();
 		String trainEnd = dateFormat.format(trainEndTime);
+		// model.clearThreshold();
 		model.setThreshold(0.499999);
 		
 		// Training time calculations and console print
@@ -168,8 +172,32 @@ public class LogisticRegresionTester {
 		System.out.println("Prediction Ended at -> " + predictEnd);
 		System.out.println("Time Taken to Predit -> " + preditElapsed + " Sec.");
 
+		// Display Accuracy and AUC statistics
 		System.out.println("Testing accuracy (%): "
 				+ Metrics.accuracy(classLabels, predictedLabels));
+		BinaryClassificationMetrics binaryClassificationMetrics = getBinaryClassificationMatrix(model, testPoints);
+		System.out.println("Area under the curve -> " + binaryClassificationMetrics.areaUnderROC());
+	}
+	
+	/**
+	 * This method calculates performance metrics for a given set of test scores and labels
+	 * @param model
+	 * @param testingDataset
+	 * @return
+	 */
+	private static BinaryClassificationMetrics getBinaryClassificationMatrix(final LogisticRegressionModel model, JavaRDD<LabeledPoint> testingDataset){
+		JavaRDD<Tuple2<Object, Object>> scoreAndLabels = testingDataset.map(
+                new Function<LabeledPoint, Tuple2<Object, Object>>() {
+					
+                	private static final long serialVersionUID = 8275673381396280119L;
+
+					public Tuple2<Object, Object> call(LabeledPoint p) {
+                        Double score = model.predict(p.features());
+                        return new Tuple2<Object, Object>(score, p.label());
+                    }
+                }
+        );
+		return new BinaryClassificationMetrics(JavaRDD.toRDD(scoreAndLabels));
 	}
 
 }

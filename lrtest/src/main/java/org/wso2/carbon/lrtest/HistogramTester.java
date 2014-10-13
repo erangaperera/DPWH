@@ -33,8 +33,11 @@ import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.api.java.function.Function;
+import org.apache.spark.mllib.evaluation.BinaryClassificationMetrics;
 import org.apache.spark.mllib.linalg.Vectors;
 import org.apache.spark.mllib.regression.LabeledPoint;
+
+import scala.Tuple2;
 
 /**
  * Main class for performing the analysis of Histogram based Partitioning
@@ -109,7 +112,7 @@ public class HistogramTester {
 
 		// Create Spark context
 		sc = new JavaSparkContext(sContext); // "local[4]", "JavaLR");
-		Logger.getRootLogger().setLevel(Level.OFF);
+		// Logger.getRootLogger().setLevel(Level.OFF);
 		
 		// Load train and test data
 		JavaRDD<String> trainingData = readData(
@@ -172,7 +175,30 @@ public class HistogramTester {
         }).cache();
 		List<Double> classLabels = testingLabels.toArray();
 		System.out.println("Testing accuracy (%): " + Metrics.accuracy(classLabels, predictedLabels));
+		BinaryClassificationMetrics binaryClassificationMetrics = getBinaryClassificationMatrix(ensembler, testPoints);
+		System.out.println("Area under the curve -> " + binaryClassificationMetrics.areaUnderROC());
 
+	}
+	
+	/**
+	 * This method calculates performance metrics for a given set of test scores and labels
+	 * @param ensembler
+	 * @param testingDataset
+	 * @return
+	 */
+	private static BinaryClassificationMetrics getBinaryClassificationMatrix(final HistogramEnsembler ensembler, JavaRDD<LabeledPoint> testingDataset){
+		JavaRDD<Tuple2<Object, Object>> scoreAndLabels = testingDataset.map(
+                new Function<LabeledPoint, Tuple2<Object, Object>>() {
+					
+                	private static final long serialVersionUID = -2473673785181535743L;
+
+					public Tuple2<Object, Object> call(LabeledPoint p) {
+                        Double score = ensembler.predict(p.features());
+                        return new Tuple2<Object, Object>(score, p.label());
+                    }
+                }
+        );
+		return new BinaryClassificationMetrics(JavaRDD.toRDD(scoreAndLabels));
 	}
 
 }
